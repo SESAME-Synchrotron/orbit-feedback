@@ -53,6 +53,11 @@ int    bpm_index[BPM_COUNT] = { 1,  2,  3,  5,  6,  7,  9, 10,
 							   50, 51, 52, 54, 61, 62, 63, 64 };
 int main()
 {
+	cpu_set_t mask;
+	CPU_ZERO(&mask);
+	CPU_SET(19, &mask);
+	int result = sched_setaffinity(0, sizeof(mask), &mask);
+
 	double* orbit_x;
 	double* orbit_y;
 	double* gold_orbit_x;
@@ -75,7 +80,7 @@ int main()
 
 	int broadcast = 1;
 	int iov_count = sizeof(payload_vector) / sizeof(struct iovec);
-	clockid_t id = CLOCK_MONOTONIC;
+	clockid_t id = CLOCK_REALTIME;
 
 	orm          = (double*) mkl_malloc(m*k*sizeof(double), 64);
 	orbit_x      = (double*) mkl_malloc(k*n*sizeof(double), 64);
