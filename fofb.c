@@ -81,6 +81,7 @@ int main()
 	int broadcast = 1;
 	int iov_count = sizeof(payload_vector) / sizeof(struct iovec);
 	clockid_t id = CLOCK_REALTIME;
+	lapack_int pivot[BPM_COUNT];
 
 	orm          = (double*) mkl_malloc(m*k*sizeof(double), 64);
 	orbit_x      = (double*) mkl_malloc(k*n*sizeof(double), 64);
@@ -142,6 +143,8 @@ int main()
 		exit(1);
 	}
 
+	LAPACKE_dgetrf(LAPACK_ROW_MAJOR, BPM_COUNT, BPM_COUNT, orm, BPM_COUNT, pivot);
+	LAPACKE_dgetri(LAPACK_ROW_MAJOR, BPM_COUNT, orm, BPM_COUNT, pivot);
 	while(1)
 	{
 		clock_gettime(id, &start);
