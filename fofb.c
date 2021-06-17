@@ -22,10 +22,8 @@
 #define BUFFER_SIZE	1040
 #define TOTAL_BPMS	65
 #define BPM_COUNT	32
-#define NIC			"eno2"
-
-#define LOCK   pthread_mutex_lock(&orbit_data_lock)
-#define UNLOCK pthread_mutex_unlock(&orbit_data_lock)
+#define NIC_FA_DATA	"eno2"
+#define NIC_GATEWAY	"eno1"
 
 struct flags
 {
@@ -47,10 +45,12 @@ struct libera_payload
 	struct   flags flags;
 	uint16_t counter;
 };
-int    bpm_index[BPM_COUNT] = { 1,  2,  3,  5,  6,  7,  9, 10, 
-	                           23, 25, 26, 27, 29, 30, 31, 32,
-							   33, 34, 35, 36, 38, 39, 41, 42,
-							   50, 51, 52, 54, 61, 62, 63, 64 };
+
+int bpm_index[BPM_COUNT] = { 1,  2,  3,  5,  6,  7,  9, 10,
+							23, 25, 26, 27, 29, 30, 31, 32,
+							33, 34, 35, 36, 38, 39, 41, 42,
+							50, 51, 52, 54, 61, 62, 63, 64 };
+
 int main()
 {
 	cpu_set_t mask;
@@ -68,20 +68,30 @@ int main()
 	double* delta_x;
 	double* delta_y;
 	double  alpha = 1, beta = 0;
+	double  x_buffer[32];
+	double  y_buffer[32];
 	int     m = 32, n = 1, k = 32, i, j;
-	int     sockfd;
+	int     libera_socket;
+	int     gw_x_socket;
+	int     gw_y_socket;
 	int     status;
+	int     status_x;
+	int     status_y;
 	int     bytes;
 	struct  timespec start, end;
-	struct  sockaddr_in servaddr;
+	struct  sockaddr_in libera_address;
+	struct  sockaddr_in gw_x_address;
+	struct  sockaddr_in gw_y_address;
 	struct  libera_payload payload[65];
 	struct  iovec payload_vector[65];
 	struct  pollfd events[1];
+	uint64_t data;
+	long int duration;
+	lapack_int pivot[BPM_COUNT];
 
 	int broadcast = 1;
 	int iov_count = sizeof(payload_vector) / sizeof(struct iovec);
 	clockid_t id = CLOCK_REALTIME;
-	lapack_int pivot[BPM_COUNT];
 
 	orm          = (double*) mkl_malloc(m*k*sizeof(double), 64);
 	orbit_x      = (double*) mkl_malloc(k*n*sizeof(double), 64);
@@ -90,8 +100,7 @@ int main()
 	delta_y      = (double*) mkl_malloc(k*n*sizeof(double), 64);
 	gold_orbit_x = (double*) mkl_malloc(k*n*sizeof(double), 64);
 	gold_orbit_y = (double*) mkl_malloc(k*n*sizeof(double), 64);
-	if(orm == NULL || orbit_x == NULL || orbit_y == NULL ||
-			delta_x == NULL || delta_y == NULL || gold_orbit_x == NULL || gold_orbit_y == NULL)
+	if(orm == NULL || orbit_x == NULL || orbit_y == NULL || delta_x == NULL || delta_y == NULL || gold_orbit_x == NULL || gold_orbit_y == NULL)
 	{
 		printf("Null mkl_alloc\n");
 		return 1;
@@ -115,31 +124,71 @@ int main()
 		payload_vector[i].iov_len  = sizeof(payload);
 	}
 	
-	sockfd = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if(sockfd < 0)
+	libera_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if(libera_socket < 0)
 	{
 		perror("socket"); 
 		exit(EXIT_FAILURE); 
 	}
-	if(setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0)
+	if(setsockopt(libera_socket, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast)) < 0)
 	{
-		printf("Socket opt #1\n");
-		perror("setsocketopt");
+		perror("setsocketopt broadcast");
 		exit(1);
 	}
-	if(setsockopt(sockfd, SOL_SOCKET, SO_BINDTODEVICE, NIC, strlen(NIC)) < 0)
+	if(setsockopt(libera_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_FA_DATA, strlen(NIC_FA_DATA)) < 0)
 	{
-		printf("Socket opt #2\n");
-		perror("setsocketopt");
+		perror("setsocketopt bind");
 		exit(1);
 	}
 	
-	servaddr.sin_family = AF_INET; 
-	servaddr.sin_port = htons(PORT); 
-	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	if(bind(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0)
+	libera_address.sin_family = AF_INET; 
+	libera_address.sin_port = htons(PORT); 
+	libera_address.sin_addr.s_addr = htonl(INADDR_ANY);
+	if(bind(libera_socket, (struct sockaddr*) &libera_address, sizeof(libera_address)) < 0)
 	{
 		perror("bind");
+		exit(1);
+	}
+
+	gw_x_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if(gw_x_socket < 0)
+	{
+		perror("x gw socket");
+		exit(1);
+	}
+
+	gw_x_address.sin_family = AF_INET;
+	gw_x_address.sin_port = htons(55555);
+	gw_x_address.sin_addr.s_addr = inet_addr("10.2.2.18");
+	if(connect(gw_x_socket, (struct sockaddr*) &gw_x_address, sizeof(gw_x_address)) < 0)
+	{
+		perror("x gw connect");
+		exit(1);
+	}
+	if(setsockopt(gw_x_socket, SOL_SOCKET, SO_BINDTODEVICE, "eno1", strlen("eno1")) < 0)
+	{
+		perror("x gw setsocketopt");
+		exit(1);
+	}
+
+	gw_y_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if(gw_y_socket < 0)
+	{
+		perror("y gw socket");
+		exit(1);
+	}
+
+	gw_y_address.sin_family = AF_INET;
+	gw_y_address.sin_port = htons(55555);
+	gw_y_address.sin_addr.s_addr = inet_addr("10.2.2.20");
+	if(connect(gw_y_socket, (struct sockaddr*) &gw_y_address, sizeof(gw_y_address)) < 0)
+	{
+		perror("y gw connect");
+		exit(1);
+	}
+	if(setsockopt(gw_y_socket, SOL_SOCKET, SO_BINDTODEVICE, "eno1", strlen("eno1")) < 0)
+	{
+		perror("y gw setsocketopt");
 		exit(1);
 	}
 
@@ -148,7 +197,7 @@ int main()
 	while(1)
 	{
 		clock_gettime(id, &start);
-		events[0].fd = sockfd;
+		events[0].fd = libera_socket;
 		events[0].events = POLLIN;
 		events[0].revents = 0;
 		int status = poll(events, 1, 1000);
@@ -158,7 +207,7 @@ int main()
 			exit(1);
 		}
 
-		int bytes = readv(sockfd, payload_vector, iov_count);
+		int bytes = readv(libera_socket, payload_vector, iov_count);
 		if(bytes != BUFFER_SIZE)
 			continue;
 		
@@ -175,11 +224,38 @@ int main()
 		
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, orm, k, orbit_x, n, beta, delta_x, n);
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, orm, k, orbit_y, n, beta, delta_y, n);
+
+		for(i = 0; i < BPM_COUNT; i++)
+		{
+			memcpy(&data, &delta_x[i], sizeof(double));
+			data = htobe64(data);
+			memcpy(x_buffer + i, &data, sizeof(uint64_t));
+
+			memcpy(&data, &delta_y[i], sizeof(double));
+			data = htobe64(data);
+			memcpy(y_buffer + i, &data, sizeof(uint64_t));
+		}
+		
+		status_x = write(gw_x_socket, x_buffer, sizeof(x_buffer));
+		status_y = write(gw_y_socket, y_buffer, sizeof(y_buffer));
+		if(status_x < 0)
+		{
+			perror("x gw write");
+		}
+		if(status_y < 0)
+		{
+			perror("y gw write");
+		}
+
 		clock_gettime(id, &end);
 
-		long int d = 1E9 * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
-		printf("Calc: %8.3f us | %d\n", d / 1000.0, (int) orbit_x[0]);
+		duration = 1E9 * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
+		printf("Calc: %8.3f us | X: %10d | Y: %10d\n", duration / 1000.0, (int) delta_x[0], (int) delta_y[0]);
 	}
+
+	close(libera_socket);
+	close(gw_x_socket);
+	close(gw_y_socket);
 
 	return 0;
 }
