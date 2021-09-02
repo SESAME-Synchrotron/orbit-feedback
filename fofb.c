@@ -1,19 +1,11 @@
 #define _GNU_SOURCE
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <time.h>
-#include <unistd.h> 
 #include <string.h> 
-#include <sys/types.h> 
 #include <sys/socket.h> 
-#include <arpa/inet.h> 
 #include <netinet/in.h> 
-#include <sys/uio.h>
 #include <poll.h>
-#include <net/if.h>
-#include <pthread.h>
-#include <sys/time.h>
 #include <sched.h>
 
 #include "mkl.h"
