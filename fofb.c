@@ -10,12 +10,15 @@
 
 #include "mkl.h"
 
-#define PORT		2048 
-#define BUFFER_SIZE	1040
-#define TOTAL_BPMS	65
-#define BPM_COUNT	32
-#define NIC_FA_DATA	"eno2"
-#define NIC_GATEWAY	"eno1"
+#define PORT			2048 
+#define BUFFER_SIZE		1040
+#define TOTAL_BPMS		65
+#define BPM_COUNT		32
+#define NIC_FA_DATA		"eno2"
+#define NIC_GATEWAY		"eno1"
+#define GW_X_ADDRESS	"10.2.2.18"
+#define GW_Y_ADDRESS	"10.2.2.20"
+#define GW_PORT			55555
 
 struct flags
 {
@@ -150,14 +153,14 @@ int main()
 	}
 
 	gw_x_address.sin_family = AF_INET;
-	gw_x_address.sin_port = htons(55555);
-	gw_x_address.sin_addr.s_addr = inet_addr("10.2.2.18");
+	gw_x_address.sin_port = htons(GW_PORT);
+	gw_x_address.sin_addr.s_addr = inet_addr(GW_X_ADDRESS);
 	if(connect(gw_x_socket, (struct sockaddr*) &gw_x_address, sizeof(gw_x_address)) < 0)
 	{
 		perror("x gw connect");
 		exit(1);
 	}
-	if(setsockopt(gw_x_socket, SOL_SOCKET, SO_BINDTODEVICE, "eno1", strlen("eno1")) < 0)
+	if(setsockopt(gw_x_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_GATEWAY, strlen(NIC_GATEWAY)) < 0)
 	{
 		perror("x gw setsocketopt");
 		exit(1);
@@ -171,14 +174,14 @@ int main()
 	}
 
 	gw_y_address.sin_family = AF_INET;
-	gw_y_address.sin_port = htons(55555);
-	gw_y_address.sin_addr.s_addr = inet_addr("10.2.2.20");
+	gw_y_address.sin_port = htons(GW_PORT);
+	gw_y_address.sin_addr.s_addr = inet_addr(GW_Y_ADDRESS);
 	if(connect(gw_y_socket, (struct sockaddr*) &gw_y_address, sizeof(gw_y_address)) < 0)
 	{
 		perror("y gw connect");
 		exit(1);
 	}
-	if(setsockopt(gw_y_socket, SOL_SOCKET, SO_BINDTODEVICE, "eno1", strlen("eno1")) < 0)
+	if(setsockopt(gw_y_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_GATEWAY, strlen(NIC_GATEWAY)) < 0)
 	{
 		perror("y gw setsocketopt");
 		exit(1);
