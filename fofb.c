@@ -32,6 +32,7 @@ struct flags
 	uint16_t interlock:1;
 };
 
+// Fast data structure that is transferred from the libera at 10 kHz. 
 struct libera_payload
 {
 	int32_t  sum;
@@ -41,6 +42,9 @@ struct libera_payload
 	uint16_t counter;
 };
 
+// A look-up table to read the 32-gdx-connected bpms from the fast data for the 64 bpms.
+// The values represent the index in the fast data buffer
+// BPM #4 -> FA index #5
 int bpm_index[BPM_COUNT] = { 1,  2,  3,  5,  6,  7,  9, 10,
 							23, 25, 26, 27, 29, 30, 31, 32,
 							33, 34, 35, 36, 38, 39, 41, 42,
@@ -48,6 +52,7 @@ int bpm_index[BPM_COUNT] = { 1,  2,  3,  5,  6,  7,  9, 10,
 
 int main()
 {
+	// Set the code to run on a specific core for real-time calculation purposes.
 	cpu_set_t mask;
 	CPU_ZERO(&mask);
 	CPU_SET(19, &mask);
@@ -88,6 +93,7 @@ int main()
 	int iov_count = sizeof(payload_vector) / sizeof(struct iovec);
 	clockid_t id = CLOCK_REALTIME;
 
+	// Initialize all pointers as mkl dynamic memory.
 	orm          = (double*) mkl_malloc(m*k*sizeof(double), 64);
 	orbit_x      = (double*) mkl_malloc(k*n*sizeof(double), 64);
 	orbit_y      = (double*) mkl_malloc(k*n*sizeof(double), 64);
@@ -113,12 +119,16 @@ int main()
 		delta_x[i] = 0;
 		delta_y[i] = 0;
 	}
+
+	// Initialize payload_vectors with pointers for libera_payload struct
 	for(i = 0; i < TOTAL_BPMS; i++)
 	{
 		payload_vector[i].iov_base = &payload[i];
 		payload_vector[i].iov_len  = sizeof(payload);
 	}
 	
+	// Initialize the socket to the FA data VLAN.
+	// Configure it as UDP, broadcast socket and bind it to NIC_FA_DATA.
 	libera_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if(libera_socket < 0)
 	{
@@ -145,6 +155,7 @@ int main()
 		exit(1);
 	}
 
+	// Initialize the socket to the X correctors gateway.
 	gw_x_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if(gw_x_socket < 0)
 	{
@@ -166,6 +177,7 @@ int main()
 		exit(1);
 	}
 
+	// Initialize the socket to the Y correctors gateway.
 	gw_y_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if(gw_y_socket < 0)
 	{
@@ -187,11 +199,15 @@ int main()
 		exit(1);
 	}
 
+	// Calculate the inverse of the orbit response matrix (orm), as is from the LAPACKE MKL API.
 	LAPACKE_dgetrf(LAPACK_ROW_MAJOR, BPM_COUNT, BPM_COUNT, orm, BPM_COUNT, pivot);
 	LAPACKE_dgetri(LAPACK_ROW_MAJOR, BPM_COUNT, orm, BPM_COUNT, pivot);
 	while(1)
 	{
 		clock_gettime(id, &start);
+
+		// Poll the libera_socket for FA data transfer.
+		// NOTE: Investigate select instead of poll.
 		events[0].fd = libera_socket;
 		events[0].events = POLLIN;
 		events[0].revents = 0;
@@ -202,10 +218,13 @@ int main()
 			exit(1);
 		}
 
+		// We have one shot of 64 bpms fast data, move it to the payload_vector.
 		int bytes = readv(libera_socket, payload_vector, iov_count);
 		if(bytes != BUFFER_SIZE)
 			continue;
-		
+
+		// Copy the fast data to the corresponding orbit array.
+		// The gold orbit just contains random data for testing.
 		for(i = 0; i < BPM_COUNT; i++)
 		{
 			orbit_x[i] = payload[bpm_index[i]].x;
@@ -214,12 +233,16 @@ int main()
 			gold_orbit_y[i] = orbit_y[i] / 2;
 		}
 
+		// Subtract the orbit from the corresponding golden orbit.
+		// orbit_x = -1 * gold_orbit_x + orbit_x
 		cblas_daxpy(BPM_COUNT, -1, gold_orbit_x, 0, orbit_x, 0);
 		cblas_daxpy(BPM_COUNT, -1, gold_orbit_y, 0, orbit_y, 0);
-		
+
+		// Multiply the orbit difference by the inverse of ORM. The result is the corresponding delta current.
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, orm, k, orbit_x, n, beta, delta_x, n);
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, orm, k, orbit_y, n, beta, delta_y, n);
 
+		// Convert the delta current values to big endian (Stupid PowerPC CPU :|)
 		for(i = 0; i < BPM_COUNT; i++)
 		{
 			memcpy(&data, &delta_x[i], sizeof(double));
@@ -231,6 +254,7 @@ int main()
 			memcpy(y_buffer + i, &data, sizeof(uint64_t));
 		}
 		
+		// Send the big-endian buffered data to the gateway.
 		status_x = write(gw_x_socket, x_buffer, sizeof(x_buffer));
 		status_y = write(gw_y_socket, y_buffer, sizeof(y_buffer));
 		if(status_x < 0)
@@ -242,12 +266,14 @@ int main()
 			perror("y gw write");
 		}
 
+		// For benchmarking purposes only.
 		clock_gettime(id, &end);
-
 		duration = 1E9 * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
 		printf("Calc: %8.3f us | X: %10d | Y: %10d\n", duration / 1000.0, (int) delta_x[0], (int) delta_y[0]);
 	}
 
+	// Clean-up all sockets
+	// TODO: Should be moved to signal handlers.
 	close(libera_socket);
 	close(gw_x_socket);
 	close(gw_y_socket);
