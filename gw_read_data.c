@@ -12,7 +12,7 @@
 #include <pevulib.h>
 
 #define BPM_COUNT			32
-#define NUMBER_OF_CHANNELS	16
+#define NUMBER_OF_CHANNELS	12
 #define BASE_CHANNEL_OFFSET 0x100
 #define EVENT_ID            0x40
 #define REGISTER_OPERATION_WRITE	0x0080000000000000ULL	// b56 == "w/!r"
@@ -36,6 +36,17 @@ typedef struct
 {
 	uint64_t registers[NUMBER_OF_REGISTERS];
 } channel_t;
+
+struct psc_map_t
+{
+	uint8_t channel;
+	uint8_t ps;
+} psc_map[BPM_COUNT] = {
+	{0, 1}, {0, 2}, {0, 3}, {1, 1},  {1, 2},  {1, 3},  {2, 1},  {2, 2},	
+	{3, 1}, {3, 2}, {3, 3},	{4, 1},  {4, 2},  {4, 3},  {5, 1},  {5, 2},	
+	{6, 1}, {6, 2}, {6, 3},	{7, 1},  {7, 2},  {7, 3},  {8, 1},  {8, 2},
+	{9, 1}, {9, 2}, {9, 3},	{10, 1}, {10, 2}, {10, 3}, {11, 1}, {11, 2}
+};
 
 static channel_t* channels;
 static struct pev_ioctl_map_pg map;
@@ -69,6 +80,9 @@ int main()
 		return 1;
 	}
 
+	const uint32_t address = 157;
+	uint32_t ps;
+	uint32_t channel;
 	while(1)
 	{
 		printf("Waiting for buffer ...\n");
@@ -86,10 +100,13 @@ int main()
 			printf("%d\n", (int) buffer[i]);
 
 			psc_iloads[i] += buffer[i];
-			channels[i].registers[REGISTER_OPERATION_READ] = REGISTER_OPERATION_WRITE | 
-															((uint64_t)ps) << REGISTER_LINK_PS_SHIFT |
-															(((uint64_t)address) << 32) | 
-															((uint64_t)( *(uint64_t*) &psc_iloads[i] ));
+
+			ps = psc_map[i].ps;
+			channel = psc_map[i].channel;
+			channels[channel].registers[REGISTER_OPERATION_READ] =  REGISTER_OPERATION_WRITE | 
+																	((uint64_t)ps) << REGISTER_LINK_PS_SHIFT |
+																	(((uint64_t)address) << 32) | 
+																	((uint64_t)( *(uint64_t*) &psc_iloads[i] ));
 		}
 	}
 
