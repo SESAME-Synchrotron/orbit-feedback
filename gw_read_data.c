@@ -19,24 +19,30 @@
 #define REGISTER_OPERATION_READ		0x0000000000000000ULL	// b56 == "w/!r"
 #define REGISTER_LINK_PS_SHIFT		46
 
-enum /*Registers*/
+// Registers IDs in the memory map from PEV.
+// These registeres are transferred in the memory map.
+enum
 {
-	REGISTER_PRIORITY_WRITE	=	0	,
-	REGISTER_NORMAL_WRITE			,
-	REGISTER_NORMAL_READ			,
-	REGISTER_WAVEFORM_WRITE			,
-	REGISTER_WAVEFORM_READ			,
-	NUMBER_OF_IO_REGISTERS			,	/*Reserved*/
-	REGISTER_MSR					,
-	REGISTER_TSR					,
+	REGISTER_PRIORITY_WRITE	= 0,
+	REGISTER_NORMAL_WRITE,
+	REGISTER_NORMAL_READ,
+	REGISTER_WAVEFORM_WRITE,
+	REGISTER_WAVEFORM_READ,
+	NUMBER_OF_IO_REGISTERS,	/*Reserved*/
+	REGISTER_MSR,
+	REGISTER_TSR,
 	NUMBER_OF_REGISTERS
 };
 
+// A struct to define the PEV memory map transferred to the PSC.
+// Each channel contains 8 unsigned 64-bit registeres.
 typedef struct
 {
 	uint64_t registers[NUMBER_OF_REGISTERS];
 } channel_t;
 
+// This struct defines the mapping of the correctors to the PSC controllers.
+// Example: Corrector #4 is on channel 1 PS 1
 struct psc_map_t
 {
 	uint8_t channel;
@@ -48,6 +54,7 @@ struct psc_map_t
 	{9, 1}, {9, 2}, {9, 3},	{10, 1}, {10, 2}, {10, 3}, {11, 1}, {11, 2}
 };
 
+// Declarations for PEV initialization.
 static channel_t* channels;
 static struct pev_ioctl_map_pg map;
 static struct pev_node *node;
@@ -99,8 +106,10 @@ int main()
 			// Test the received data.
 			printf("%d\n", (int) buffer[i]);
 
+			// Perform correction on the current values we stored initially.
 			psc_iloads[i] += buffer[i];
 
+			// Write these values to the memory map.
 			ps = psc_map[i].ps;
 			channel = psc_map[i].channel;
 			channels[channel].registers[REGISTER_OPERATION_READ] =  REGISTER_OPERATION_WRITE | 
