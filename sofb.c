@@ -1,15 +1,33 @@
 #include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
 
 #include <cadef.h>
 
 #define LIBERA_COUNT	12
 #define BPM_COUNT		48
+#define IO_TIMEOUT		1
 
 chid x_positions_id[BPM_COUNT];
 chid y_positions_id[BPM_COUNT];
-
 double x_positions[BPM_COUNT];
 double y_positions[BPM_COUNT];
+
+static bool initialize_epics();
+static bool read_positions();
+static bool read_position_x(int libera, int bpm, double* value);
+static bool read_position_y(int libera, int bpm, double* value);
+
+int main()
+{
+	double value;
+
+	initialize_epics();
+
+	read_position_x(1, 1, &value);
+	printf("Value: %f\n", value);
+	return 0;
+}
 
 bool initialize_epics()
 {
@@ -31,7 +49,7 @@ bool initialize_epics()
 		}
 	}
 
-	status = ca_pend_io(2.0);
+	status = ca_pend_io(IO_TIMEOUT);
 	switch(status)
 	{
 		case ECA_NORMAL:
@@ -45,7 +63,7 @@ bool initialize_epics()
 	}
 }
 
-void read_positions()
+bool read_positions()
 {
 	int i, j, status;
 
@@ -53,23 +71,52 @@ void read_positions()
 	{
 		for(j = 0; j < 4; j++)
 		{
-			ca_get(DBR_DOUBLE, &x_positions_id[i * 4 + j], &x_positions[i * 4 + j]);
-			ca_get(DBR_DOUBLE, &y_positions_id[i * 4 + j], &y_positions[i * 4 + j]);
+			ca_get(DBR_DOUBLE, x_positions_id[i * 4 + j], &x_positions[i * 4 + j]);
+			ca_get(DBR_DOUBLE, y_positions_id[i * 4 + j], &y_positions[i * 4 + j]);
+
+			x_positions[i * 4 + j] /= 1000.0;
+			y_positions[i * 4 + j] /= 1000.0;
 		}
 	}
 
-	status = ca_pend_io(2.0);
+	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
 		return false;
 
 	return true;
 }
 
-double read_position_x(int libera, int bpm)
+bool read_position_x(int libera, int bpm, double* value)
 {
-	ca_get(DBR_DOUBLE, &x_positions_id[libera * 4 + bpm], &x_positions[libera * 4 + j]);
-	int status = ca_pend_io(2.0);
+	int index;
+	int status;
+	
+	index = (libera - 1) * 4 + (bpm - 1);
+	ca_get(DBR_DOUBLE, x_positions_id[index], &x_positions[index]);
+	
+	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
-		return -1;
-	return x_positions[libera * 4 + j];
+		return false;
+	
+	x_positions[index] /= 1000.0;
+	*value = x_positions[index];
+	return true;
 }
+
+bool read_position_y(int libera, int bpm, double* value)
+{
+	int index;
+	int status;
+
+	index = (libera - 1) * 4 + (bpm - 1);
+	ca_get(DBR_DOUBLE, y_positions_id[index], &y_positions[index]);
+	
+	status = ca_pend_io(IO_TIMEOUT);
+	if(status != ECA_NORMAL)
+		return false;
+
+	y_positions[index] /= 1000.0;
+	*value = y_positions[index];
+	return true;
+}
+
