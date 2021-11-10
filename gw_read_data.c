@@ -15,9 +15,12 @@
 #define NUMBER_OF_CHANNELS	12
 #define BASE_CHANNEL_OFFSET 0x100
 #define EVENT_ID            0x40
+#define EVENT_ID_BITS		0xf0
+#define EVENT_CHANNEL_BITS	0x0f
 #define REGISTER_OPERATION_WRITE	0x0080000000000000ULL	// b56 == "w/!r"
 #define REGISTER_OPERATION_READ		0x0000000000000000ULL	// b56 == "w/!r"
 #define REGISTER_LINK_PS_SHIFT		46
+#define TSR_ERROR					0x8000
 
 // Registers IDs in the memory map from PEV.
 // These registeres are transferred in the memory map.
@@ -45,14 +48,17 @@ typedef struct
 // Example: Corrector #4 is on channel 1 PS 1
 struct psc_map_t
 {
-	uint8_t channel;
-	uint8_t ps;
+	uint32_t channel;
+	uint32_t ps;
 } psc_map[BPM_COUNT] = {
 	{0, 1}, {0, 2}, {0, 3}, {1, 1},  {1, 2},  {1, 3},  {2, 1},  {2, 2},	
 	{3, 1}, {3, 2}, {3, 3},	{4, 1},  {4, 2},  {4, 3},  {5, 1},  {5, 2},	
 	{6, 1}, {6, 2}, {6, 3},	{7, 1},  {7, 2},  {7, 3},  {8, 1},  {8, 2},
 	{9, 1}, {9, 2}, {9, 3},	{10, 1}, {10, 2}, {10, 3}, {11, 1}, {11, 2}
 };
+
+const uint64_t iload_address = (uint64_t)(157);
+double psc_iloads[BPM_COUNT];
 
 // Declarations for PEV initialization.
 static channel_t* channels;
@@ -63,16 +69,20 @@ static void	*base;
 
 static void initialize_pev();
 static void cleanup_pev(int code);
+static void initialize_values();
 
 int main()
 {
 	int socket_fd;
 	struct sockaddr_in sa;
 	double buffer[BPM_COUNT];
-	double psc_iloads[BPM_COUNT];
 	ssize_t bytes;
+	uint32_t channel;
+	uint64_t ps;
+	uint64_t raw_value;
 
 	initialize_pev();
+	initialize_values();
 
 	memset(&sa, 0, sizeof(sa));
 	sa.sin_family = AF_INET;
@@ -87,9 +97,6 @@ int main()
 		return 1;
 	}
 
-	const uint32_t address = 157;
-	uint32_t ps;
-	uint32_t channel;
 	while(1)
 	{
 		printf("Waiting for buffer ...\n");
@@ -110,12 +117,10 @@ int main()
 			psc_iloads[i] += buffer[i];
 
 			// Write these values to the memory map.
-			ps = psc_map[i].ps;
+			ps = (uint64_t)psc_map[i].ps << REGISTER_LINK_PS_SHIFT;
 			channel = psc_map[i].channel;
-			channels[channel].registers[REGISTER_OPERATION_READ] =  REGISTER_OPERATION_WRITE | 
-																	((uint64_t)ps) << REGISTER_LINK_PS_SHIFT |
-																	(((uint64_t)address) << 32) | 
-																	((uint64_t)( *(uint64_t*) &psc_iloads[i] ));
+			raw_value = *(uint64_t*) &psc_iloads[i];
+			channels[channel].registers[REGISTER_NORMAL_WRITE] =  REGISTER_OPERATION_WRITE | ps | iload_address << 32 | raw_value;
 		}
 	}
 
@@ -201,5 +206,43 @@ void cleanup_pev(int code)
 
 	pev_exit(node);
 	exit(code);
+}
+
+void initialize_values()
+{
+	float value;
+	int c = 0;
+	int status;
+	uint32_t channel;
+	uint32_t raw;
+	uint64_t ps;
+	for(c = 0; c < BPM_COUNT; c++)
+	{
+		ps = (uint64_t)psc_map[c].ps << REGISTER_LINK_PS_SHIFT;
+		channel = psc_map[c].channel;
+
+		channels[channel].registers[REGISTER_NORMAL_READ] = REGISTER_OPERATION_READ | ps | iload_address << 32 | iload_address;
+		pev_evt_read(event, -1);
+		pev_evt_unmask(event, event->src_id);
+		if ((event->src_id & EVENT_ID_BITS) != EVENT_ID)
+		{
+			printf("[psc][pev] Unrecognized source ID: 0x%X\n",event->src_id);
+			// handler(0);
+			continue;
+		}
+		channel = event->src_id & EVENT_CHANNEL_BITS;
+		status = (uint32_t)channels[channel].registers[REGISTER_TSR];
+	
+		if (status & TSR_ERROR)
+		{
+			printf("Error occured.\n");
+			// handler(0);
+			continue;
+		}
+
+		raw = (uint32_t)(channels[channel].registers[REGISTER_NORMAL_READ] & 0x00000000ffffffffULL);
+		memcpy(&value, &raw, sizeof(float));
+		psc_iloads[c] = (double) value;
+	}
 }
 
