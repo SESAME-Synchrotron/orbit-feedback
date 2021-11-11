@@ -10,6 +10,8 @@
 
 chid x_positions_id[BPM_COUNT];
 chid y_positions_id[BPM_COUNT];
+chid rf_frequency_id;
+chid set_rf_id;
 double x_positions[BPM_COUNT];
 double y_positions[BPM_COUNT];
 
@@ -17,6 +19,8 @@ static bool initialize_epics();
 static bool read_positions();
 static bool read_position_x(int libera, int bpm, double* value);
 static bool read_position_y(int libera, int bpm, double* value);
+static bool read_rf(double* value);
+static bool set_rf(double* value);
 
 int main()
 {
@@ -25,14 +29,16 @@ int main()
 	initialize_epics();
 
 	read_position_x(1, 1, &value);
-	printf("Value: %f\n", value);
+	printf("Value: %.3f\n", value);
+	read_rf(&value);
+	printf("RF: %f\n", value);
 	return 0;
 }
 
 bool initialize_epics()
 {
 	int i, j, status;
-	char pv_name[20];
+	char pv_name[30];
 
 	ca_task_initialize();
 	for(i = 0; i < LIBERA_COUNT; i++)
@@ -48,6 +54,14 @@ bool initialize_epics()
 			ca_search(pv_name, &y_positions_id[i * 4 + j]);
 		}
 	}
+
+	memset(pv_name, 0, sizeof(pv_name));
+	snprintf(pv_name, sizeof(pv_name), "BO-RF-SGN1:getFrequency");
+	ca_search(pv_name, &rf_frequency_id);
+	
+	memset(pv_name, 0, sizeof(pv_name));
+	snprintf(pv_name, sizeof(pv_name), "BO-RF-SGN1:setFrequency");
+	ca_search(pv_name, &set_rf_id);
 
 	status = ca_pend_io(IO_TIMEOUT);
 	switch(status)
@@ -117,6 +131,30 @@ bool read_position_y(int libera, int bpm, double* value)
 
 	y_positions[index] /= 1000.0;
 	*value = y_positions[index];
+	return true;
+}
+
+bool read_rf(double* value)
+{
+	int status;
+
+	ca_get(DBR_DOUBLE, rf_frequency_id, value);
+	status = ca_pend_io(IO_TIMEOUT);
+	if(status != ECA_NORMAL)
+		return false;
+	
+	return true;
+}
+
+bool set_rf(double* value)
+{
+	int status;
+
+	ca_put(DBR_DOUBLE, set_rf_id, value);
+	status = ca_pend_io(IO_TIMEOUT);
+	if(status != ECA_NORMAL)
+		return false;
+
 	return true;
 }
 
