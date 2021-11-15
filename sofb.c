@@ -20,7 +20,7 @@ static bool read_positions();
 static bool read_position_x(int libera, int bpm, double* value);
 static bool read_position_y(int libera, int bpm, double* value);
 static bool read_rf(double* value);
-static bool set_rf(double* value);
+static bool set_rf(double value);
 
 int main()
 {
@@ -146,11 +146,11 @@ bool read_rf(double* value)
 	return true;
 }
 
-bool set_rf(double* value)
+bool set_rf(double value)
 {
 	int status;
 
-	ca_put(DBR_DOUBLE, set_rf_id, value);
+	ca_put(DBR_DOUBLE, set_rf_id, &value);
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
 		return false;

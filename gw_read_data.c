@@ -8,6 +8,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <endian.h>
+#include <time.h>
+#include <signal.h>
 
 #include <pevulib.h>
 
@@ -21,6 +23,8 @@
 #define REGISTER_OPERATION_READ		0x0000000000000000ULL	// b56 == "w/!r"
 #define REGISTER_LINK_PS_SHIFT		46
 #define TSR_ERROR					0x8000
+#define ADDRESS_SET_REF		175
+#define ADDRESS_ILOAD		153
 
 // Registers IDs in the memory map from PEV.
 // These registeres are transferred in the memory map.
@@ -57,8 +61,8 @@ struct psc_map_t
 	{9, 1}, {9, 2}, {9, 3},	{10, 1}, {10, 2}, {10, 3}, {11, 1}, {11, 2}
 };
 
-const uint64_t iload_address = (uint64_t)(157);
-double psc_iloads[BPM_COUNT];
+// const uint64_t iload_address = (uint64_t)(157);
+float psc_iloads[BPM_COUNT];
 
 // Declarations for PEV initialization.
 static channel_t* channels;
@@ -68,18 +72,20 @@ static struct pev_ioctl_evt *event;
 static void	*base;
 
 static void initialize_pev();
-static void cleanup_pev(int code);
+static void cleanup_pev();
 static void initialize_values();
 
 int main()
 {
+	int status;
 	int socket_fd;
 	struct sockaddr_in sa;
 	double buffer[BPM_COUNT];
 	ssize_t bytes;
 	uint32_t channel;
+	uint32_t raw_value;
+	uint64_t address;
 	uint64_t ps;
-	uint64_t raw_value;
 
 	initialize_pev();
 	initialize_values();
@@ -97,7 +103,11 @@ int main()
 		return 1;
 	}
 
-	while(1)
+	signal(SIGINT, (void*) cleanup_pev);
+
+	int l = 0;
+	srand(time(0));
+	while(l++ < 10)
 	{
 		printf("Waiting for buffer ...\n");
 		bytes = read(socket_fd, &buffer, sizeof(buffer));
@@ -108,22 +118,41 @@ int main()
 		}
 
 		int i = 0;
+		float value;
 		for(i = 0; i < BPM_COUNT; i++)
 		{
 			// Test the received data.
-			printf("%d\n", (int) buffer[i]);
+			printf("%f\n", buffer[i]);
 
 			// Perform correction on the current values we stored initially.
 			psc_iloads[i] += buffer[i];
 
 			// Write these values to the memory map.
 			ps = (uint64_t)psc_map[i].ps << REGISTER_LINK_PS_SHIFT;
+			address = (uint64_t) ADDRESS_SET_REF;
 			channel = psc_map[i].channel;
-			raw_value = *(uint64_t*) &psc_iloads[i];
-			channels[channel].registers[REGISTER_NORMAL_WRITE] =  REGISTER_OPERATION_WRITE | ps | iload_address << 32 | raw_value;
+			raw_value = *(uint32_t*)(psc_iloads + i);
+
+			channels[channel].registers[REGISTER_NORMAL_WRITE] = REGISTER_OPERATION_WRITE | ps | address << 32 | (uint64_t) raw_value;
+			pev_evt_read(event, -1);
+			pev_evt_unmask(event, event->src_id);
+			if ((event->src_id & EVENT_ID_BITS) != EVENT_ID)
+			{
+				printf("[psc][pev] Unrecognized source ID: 0x%X\n",event->src_id);
+				continue;
+			}
+
+			channel = event->src_id & EVENT_CHANNEL_BITS;
+			status = (uint32_t)channels[channel].registers[REGISTER_TSR];
+			if (status & TSR_ERROR)
+			{
+				printf("Error occured.\n");
+				continue;
+			}
 		}
 	}
 
+	cleanup_pev();
 	return 0;
 }
 
@@ -185,15 +214,19 @@ void initialize_pev()
 	}
 }
 
-void cleanup_pev(int code)
+void cleanup_pev()
 {
 	uint32_t channel;
 
+	printf("\n\rSIGINT captured, cleanup in progress ... \n");
+	
 	pev_evt_read(event, 1);
 	pev_evt_unmask(event, event->src_id);
 
 	if(base)
+	{
 		pev_map_free(&map);
+	}
 
 	if(event)
 	{
@@ -204,8 +237,10 @@ void cleanup_pev(int code)
 		pev_evt_queue_free(event);
 	}
 
-	pev_exit(node);
-	exit(code);
+	int status = pev_exit(node);
+	printf("Status: %d\n", status);
+	printf("Done.\n");
+	exit(0);
 }
 
 void initialize_values()
@@ -216,12 +251,14 @@ void initialize_values()
 	uint32_t channel;
 	uint32_t raw;
 	uint64_t ps;
+	uint64_t address;
 	for(c = 0; c < BPM_COUNT; c++)
 	{
-		ps = (uint64_t)psc_map[c].ps << REGISTER_LINK_PS_SHIFT;
+		address = (uint64_t) ADDRESS_ILOAD;
+		ps = ((uint64_t)psc_map[c].ps) << REGISTER_LINK_PS_SHIFT;
 		channel = psc_map[c].channel;
 
-		channels[channel].registers[REGISTER_NORMAL_READ] = REGISTER_OPERATION_READ | ps | iload_address << 32 | iload_address;
+		channels[channel].registers[REGISTER_NORMAL_READ] = REGISTER_OPERATION_READ | ps | address << 32 | address;
 		pev_evt_read(event, -1);
 		pev_evt_unmask(event, event->src_id);
 		if ((event->src_id & EVENT_ID_BITS) != EVENT_ID)
@@ -230,9 +267,9 @@ void initialize_values()
 			// handler(0);
 			continue;
 		}
+
 		channel = event->src_id & EVENT_CHANNEL_BITS;
 		status = (uint32_t)channels[channel].registers[REGISTER_TSR];
-	
 		if (status & TSR_ERROR)
 		{
 			printf("Error occured.\n");
@@ -242,7 +279,7 @@ void initialize_values()
 
 		raw = (uint32_t)(channels[channel].registers[REGISTER_NORMAL_READ] & 0x00000000ffffffffULL);
 		memcpy(&value, &raw, sizeof(float));
-		psc_iloads[c] = (double) value;
+		psc_iloads[c] = value;
 	}
 }
 
