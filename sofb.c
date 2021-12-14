@@ -30,8 +30,14 @@ int main()
 
 	read_position_x(1, 1, &value);
 	printf("Value: %.3f\n", value);
+	
+	read_positions();
+	value = x_positions[0];
+	printf("Value: %.3f\n", value);
+	
 	read_rf(&value);
 	printf("RF: %f\n", value);
+	
 	return 0;
 }
 
@@ -87,15 +93,21 @@ bool read_positions()
 		{
 			ca_get(DBR_DOUBLE, x_positions_id[i * 4 + j], &x_positions[i * 4 + j]);
 			ca_get(DBR_DOUBLE, y_positions_id[i * 4 + j], &y_positions[i * 4 + j]);
-
-			x_positions[i * 4 + j] /= 1000.0;
-			y_positions[i * 4 + j] /= 1000.0;
 		}
 	}
 
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
 		return false;
+	
+	for(i = 0; i < LIBERA_COUNT; i++)
+	{
+		for(j = 0; j < 4; j++)
+		{
+			x_positions[i * 4 + j] /= 1000.0;
+			y_positions[i * 4 + j] /= 1000.0;
+		}
+	}
 
 	return true;
 }
