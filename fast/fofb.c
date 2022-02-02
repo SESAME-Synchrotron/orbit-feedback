@@ -4,9 +4,11 @@
 #include <time.h>
 #include <string.h> 
 #include <sys/socket.h> 
-#include <netinet/in.h> 
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <poll.h>
 #include <sched.h>
+#include <unistd.h>
 
 #include "mkl.h"
 
@@ -58,28 +60,28 @@ int main()
 	cpu_set_t mask;
 	CPU_ZERO(&mask);
 	CPU_SET(19, &mask);
-	int result = sched_setaffinity(0, sizeof(mask), &mask);
+	sched_setaffinity(0, sizeof(mask), &mask);
 
 	double* orbit_x;
 	double* orbit_y;
 	double* gold_orbit_x;
 	double* gold_orbit_y;
-	double* delta_orbit_x;
-	double* delta_orbit_y;
+	// double* delta_orbit_x;
+	// double* delta_orbit_y;
 	double* orm;
 	double* delta_x;
 	double* delta_y;
 	double  alpha = 1, beta = 0;
 	double  x_buffer[32];
 	double  y_buffer[32];
-	int     m = 32, n = 1, k = 32, i, j;
+	int     m = 32, n = 1, k = 32, i;
 	int     libera_socket;
 	int     gw_x_socket;
 	int     gw_y_socket;
-	int     status;
+	// int     status;
 	int     status_x;
 	int     status_y;
-	int     bytes;
+	// int     bytes;
 	struct  timespec start, end;
 	struct  sockaddr_in libera_address;
 	struct  sockaddr_in gw_x_address;
