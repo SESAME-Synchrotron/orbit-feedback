@@ -22,7 +22,7 @@
 #define GW_Y_ADDRESS	"10.2.2.20"
 #define GW_PORT			55555
 
-#define BENCHMARK
+// #define BENCHMARK
 
 struct flags
 {
@@ -82,7 +82,6 @@ int main()
 	int     status_x;
 	int     status_y;
 	// int     bytes;
-	struct  timespec start, end;
 	struct  sockaddr_in libera_address;
 	struct  sockaddr_in gw_x_address;
 	struct  sockaddr_in gw_y_address;
@@ -90,12 +89,16 @@ int main()
 	struct  iovec payload_vector[65];
 	struct  pollfd events[1];
 	uint64_t data;
-	long int duration;
 	lapack_int pivot[BPM_COUNT];
 
 	int broadcast = 1;
 	int iov_count = sizeof(payload_vector) / sizeof(struct iovec);
+	
+#ifdef BENCHMARK
+	long int duration;
 	clockid_t id = CLOCK_REALTIME;
+	struct  timespec start, end;
+#endif
 
 	// Initialize all pointers as mkl dynamic memory.
 	orm          = (double*) mkl_malloc(m*k*sizeof(double), 64);
