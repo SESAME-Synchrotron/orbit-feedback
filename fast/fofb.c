@@ -9,6 +9,7 @@
 #include <poll.h>
 #include <sched.h>
 #include <unistd.h>
+#include <math.h>
 
 #include "mkl.h"
 
@@ -213,15 +214,19 @@ int main()
 	events[0].fd = libera_socket;
 	events[0].events = POLLIN;
 	events[0].revents = 0;
+
+	int skip = 0;
+
 	while(1)
 	{
+		// Poll the libera_socket for FA data transfer.
+		// NOTE: Investigate select instead of poll.
+		int status = poll(events, 1, 1000);
+
 		#ifdef BENCHMARK
 		clock_gettime(id, &start);
 		#endif
 
-		// Poll the libera_socket for FA data transfer.
-		// NOTE: Investigate select instead of poll.
-		int status = poll(events, 1, 1000);
 		if(status < 0)
 		{
 			perror("poll");
@@ -233,14 +238,19 @@ int main()
 		if(bytes != BUFFER_SIZE)
 			continue;
 
+		skip++;
+		if(skip != 5)
+			continue;
+		skip = 0;
+
 		// Copy the fast data to the corresponding orbit array.
 		// The gold orbit just contains random data for testing.
 		for(i = 0; i < BPM_COUNT; i++)
 		{
 			orbit_x[i] = payload[bpm_index[i]].x;
 			orbit_y[i] = payload[bpm_index[i]].y;
-			gold_orbit_x[i] = orbit_x[i] / 2;
-			gold_orbit_y[i] = orbit_y[i] / 2;
+			gold_orbit_x[i] = orbit_x[i];
+			gold_orbit_y[i] = orbit_y[i];
 		}
 
 		// Subtract the orbit from the corresponding golden orbit.
@@ -267,14 +277,14 @@ int main()
 		// Send the big-endian buffered data to the gateway.
 		status_x = write(gw_x_socket, x_buffer, sizeof(x_buffer));
 		status_y = write(gw_y_socket, y_buffer, sizeof(y_buffer));
-		if(status_x < 0)
-		{
-			perror("x gw write");
-		}
-		if(status_y < 0)
-		{
-			perror("y gw write");
-		}
+		// if(status_x < 0)
+		// {
+		// 	perror("x gw write");
+		// }
+		// if(status_y < 0)
+		// {
+		// 	perror("y gw write");
+		// }
 
 		#ifdef BENCHMARK
 		// For benchmarking purposes only.
