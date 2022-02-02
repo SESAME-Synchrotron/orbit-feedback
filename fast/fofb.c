@@ -142,11 +142,11 @@ int main()
 		perror("setsocketopt broadcast");
 		exit(1);
 	}
-	if(setsockopt(libera_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_FA_DATA, strlen(NIC_FA_DATA)) < 0)
-	{
-		perror("setsocketopt bind");
-		exit(1);
-	}
+	// if(setsockopt(libera_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_FA_DATA, strlen(NIC_FA_DATA)) < 0)
+	// {
+	// 	perror("setsocketopt bind");
+	// 	exit(1);
+	// }
 	
 	libera_address.sin_family = AF_INET; 
 	libera_address.sin_port = htons(PORT); 
@@ -173,11 +173,11 @@ int main()
 		perror("x gw connect");
 		exit(1);
 	}
-	if(setsockopt(gw_x_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_GATEWAY, strlen(NIC_GATEWAY)) < 0)
-	{
-		perror("x gw setsocketopt");
-		exit(1);
-	}
+	// if(setsockopt(gw_x_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_GATEWAY, strlen(NIC_GATEWAY)) < 0)
+	// {
+	// 	perror("x gw setsocketopt");
+	// 	exit(1);
+	// }
 
 	// Initialize the socket to the Y correctors gateway.
 	gw_y_socket = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -195,11 +195,11 @@ int main()
 		perror("y gw connect");
 		exit(1);
 	}
-	if(setsockopt(gw_y_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_GATEWAY, strlen(NIC_GATEWAY)) < 0)
-	{
-		perror("y gw setsocketopt");
-		exit(1);
-	}
+	// if(setsockopt(gw_y_socket, SOL_SOCKET, SO_BINDTODEVICE, NIC_GATEWAY, strlen(NIC_GATEWAY)) < 0)
+	// {
+	// 	perror("y gw setsocketopt");
+	// 	exit(1);
+	// }
 
 	// Calculate the inverse of the orbit response matrix (orm), as is from the LAPACKE MKL API.
 	LAPACKE_dgetrf(LAPACK_ROW_MAJOR, BPM_COUNT, BPM_COUNT, orm, BPM_COUNT, pivot);
