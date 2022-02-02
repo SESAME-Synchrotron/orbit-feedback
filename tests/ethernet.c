@@ -72,9 +72,13 @@ int main(int argc, char** argv)
 	float  frequency = 1;
 	float  increment;
 	float  _2pi_f;
+	float  cycles_count;
+	float* buffer1;
+	float* buffer2;
 	u32    delay_us;
 	u32    duration;
 	i32    cycles = 1;
+	u32    size;
 	struct timespec start, end;
 	clockid_t id = CLOCK_MONOTONIC;
 
@@ -101,24 +105,38 @@ int main(int argc, char** argv)
 	if(argv[4])
 		amplitude = atof(argv[4]);
 
+	t = 0;
+	int index;
+	index = 0;
+	size = (1000.0 / sampling) * (cycles / frequency);
+	buffer1 = (float*) malloc( sizeof(float) * size );
+	buffer2 = (float*) malloc( sizeof(float) * size );
+
 	delay_us = sampling * 1000 - 760;
 	increment = sampling / 1000.0;
+	cycles_count = cycles / frequency;
 	_2pi_f = 2 * M_PI * frequency;
-	t = 0;
-	while( t <= (cycles / frequency) + sampling / 1000.0 )
+	while( t < cycles_count )
 	{
-		clock_gettime(id, &start);
+		/* clock_gettime(id, &start); */
 		v1 = amplitude * sin(_2pi_f * t);
 		psc->tx.data = *(u32*)&v1;
 		psc_write(psc);
 		usleep(delay_us);
 		psc_read(psc, &v2);
 		t += increment;
-		clock_gettime(id, &end);
-		duration = (end.tv_sec - start.tv_sec)*1E9 + (end.tv_nsec - start.tv_nsec);
+		/* clock_gettime(id, &end); */
+		/* duration = (end.tv_sec - start.tv_sec)*1E9 + (end.tv_nsec - start.tv_nsec); */
 		/* printf("Duration: %010.3f ms\n", duration / 1E6); */
-		printf("%f %f\n", v1, v2);
+		/* printf("%f %f\n", v1, v2); */
+		buffer1[index] = v1;
+		buffer2[index] = v2;
+		index++;
 	}
+
+	int i = 0;
+	for(i = 0; i < index; i++)
+		printf("%f %f\n", buffer1[i], buffer2[i]);
 
 	psc->tx.address = ADDRESS_PRIORITY;
 	psc->tx.data = 0;
