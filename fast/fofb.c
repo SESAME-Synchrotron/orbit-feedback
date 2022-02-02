@@ -20,6 +20,8 @@
 #define GW_Y_ADDRESS	"10.2.2.20"
 #define GW_PORT			55555
 
+#define BENCHMARK
+
 struct flags
 {
 	uint16_t lock_status:1;
@@ -202,15 +204,18 @@ int main()
 	// Calculate the inverse of the orbit response matrix (orm), as is from the LAPACKE MKL API.
 	LAPACKE_dgetrf(LAPACK_ROW_MAJOR, BPM_COUNT, BPM_COUNT, orm, BPM_COUNT, pivot);
 	LAPACKE_dgetri(LAPACK_ROW_MAJOR, BPM_COUNT, orm, BPM_COUNT, pivot);
+
+	events[0].fd = libera_socket;
+	events[0].events = POLLIN;
+	events[0].revents = 0;
 	while(1)
 	{
+		#ifdef BENCHMARK
 		clock_gettime(id, &start);
+		#endif
 
 		// Poll the libera_socket for FA data transfer.
 		// NOTE: Investigate select instead of poll.
-		events[0].fd = libera_socket;
-		events[0].events = POLLIN;
-		events[0].revents = 0;
 		int status = poll(events, 1, 1000);
 		if(status < 0)
 		{
@@ -266,10 +271,12 @@ int main()
 			perror("y gw write");
 		}
 
+		#ifdef BENCHMARK
 		// For benchmarking purposes only.
 		clock_gettime(id, &end);
 		duration = 1E9 * (end.tv_sec - start.tv_sec) + end.tv_nsec - start.tv_nsec;
 		printf("Calc: %8.3f us | X: %10d | Y: %10d\n", duration / 1000.0, (int) delta_x[0], (int) delta_y[0]);
+		#endif
 	}
 
 	// Clean-up all sockets
