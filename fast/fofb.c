@@ -67,8 +67,6 @@ int main()
 	double* orbit_y;
 	double* gold_orbit_x;
 	double* gold_orbit_y;
-	// double* delta_orbit_x;
-	// double* delta_orbit_y;
 	double* orm;
 	double* delta_x;
 	double* delta_y;
@@ -79,10 +77,8 @@ int main()
 	int     libera_socket;
 	int     gw_x_socket;
 	int     gw_y_socket;
-	// int     status;
 	int     status_x;
 	int     status_y;
-	// int     bytes;
 	struct  sockaddr_in libera_address;
 	struct  sockaddr_in gw_x_address;
 	struct  sockaddr_in gw_y_address;
@@ -239,7 +235,7 @@ int main()
 			continue;
 
 		skip++;
-		if(skip != 5)
+		if(skip != 2)
 			continue;
 		skip = 0;
 
