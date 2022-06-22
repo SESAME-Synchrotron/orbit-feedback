@@ -52,8 +52,8 @@ struct libera_payload
 // BPM #4 -> FA index #5
 int bpm_index[BPM_COUNT] = { 1,  2,  3,  5,  6,  7,  9, 10,
 							23, 25, 26, 27, 29, 30, 31, 32,
-							33, 34, 35, 36, 38, 39, 41, 42,
-							50, 51, 52, 54, 61, 62, 63, 64 };
+							33, 34, 35, 36, 37, 38, 39, 40,
+							41, 42, 43, 44, 58, 59, 62, 63};
 
 int main()
 {
@@ -111,11 +111,33 @@ int main()
 		return 1;
 	}
 
-	srand(time(0));
-	for(i = 0; i < m*k; i++)
+	FILE* fp = fopen("./orm.txt", "r");
+	if(fp == NULL)
 	{
-		orm[i] = rand() % 10 + 1;
+		printf("Could not load ORM\n");
+		return 1;
 	}
+	while(fscanf(fp, "%lf", &orm[i]) != EOF)
+	{
+		orm[i] *= 1E6;
+		printf("%lf\n", orm[i]);
+		i++;
+	}
+
+	i = 0;
+	FILE* fp2 = fopen("./golden.txt", "r");
+	if(fp2 == NULL)
+	{
+		printf("Could not load golden orbit\n");
+		return 1;
+	}
+	while(fscanf(fp2, "%lf %lf", &gold_orbit_x[i], &gold_orbit_y[i]) != EOF)
+	{
+		i++;
+	}
+	fclose(fp);
+	fclose(fp2);
+	
 	for(i = 0; i < k*n; i++)
 	{
 		orbit_x[i] = 0;
@@ -245,8 +267,6 @@ int main()
 		{
 			orbit_x[i] = payload[bpm_index[i]].x;
 			orbit_y[i] = payload[bpm_index[i]].y;
-			gold_orbit_x[i] = orbit_x[i];
-			gold_orbit_y[i] = orbit_y[i];
 		}
 
 		// Subtract the orbit from the corresponding golden orbit.
@@ -268,6 +288,9 @@ int main()
 			memcpy(&data, &delta_y[i], sizeof(double));
 			data = htobe64(data);
 			memcpy(y_buffer + i, &data, sizeof(uint64_t));
+
+			// printf("Index: %02d | X = % 8d nm - % 8.3f mA | Y = % 8d - % 8.3f mA \n", i, payload[bpm_index[i]].x, delta_x[i], payload[bpm_index[i]].y, delta_y[i]);
+			// printf("Index: %02d | X = % 8d nm | Y = % 8d\n", i+1, payload[bpm_index[i]].x, payload[bpm_index[i]].y);
 		}
 		
 		// Send the big-endian buffered data to the gateway.
