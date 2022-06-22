@@ -10,16 +10,18 @@
 #define CORRECTOR_COUNT 32
 #define IO_TIMEOUT		1
 
-chid x_positions_id[BPM_COUNT];
-chid y_positions_id[BPM_COUNT];
-chid h_correctors_id[CORRECTOR_COUNT];
-chid v_correctors_id[CORRECTOR_COUNT];
+chid x_positions_id[ BPM_COUNT ];
+chid y_positions_id[ BPM_COUNT ];
+chid hc_reference_id[ CORRECTOR_COUNT ];
+chid vc_reference_id[ CORRECTOR_COUNT ];
+chid hc_load_id[ CORRECTOR_COUNT ];
+chid vc_load_id[ CORRECTOR_COUNT ];
 chid rf_frequency_id;
 chid set_rf_id;
-double x_positions[BPM_COUNT];
-double y_positions[BPM_COUNT];
-double h_correctors_currents[CORRECTOR_COUNT];
-double v_correctors_currents[CORRECTOR_COUNT];
+double x_positions[ BPM_COUNT ];
+double y_positions[ BPM_COUNT ];
+double hc_load[ CORRECTOR_COUNT ];
+double vc_load[ CORRECTOR_COUNT ];
 
 static bool initialize_epics();
 static bool read_positions();
@@ -57,8 +59,8 @@ int main()
     printf("V1C7 Current Value %.3f\n", value);
 
     read_currents();
-    printf("H1C1 Current Value %.3f\n", h_correctors_currents[0]);
-    printf("V1C1 Current Value %.3f\n", v_correctors_currents[0]);
+    printf("H1C1 Current Value %.3f\n", hc_load[0]);
+    printf("V1C1 Current Value %.3f\n", vc_load[0]);
 
     // RF
 	read_rf(&value);
@@ -70,7 +72,7 @@ int main()
 bool initialize_epics()
 {
 	int i, j, status;
-	char pv_name[30];
+	char pv_name[50];
 
 	ca_task_initialize();
 	for(i = 0; i < LIBERA_COUNT; i++)
@@ -93,11 +95,19 @@ bool initialize_epics()
         {
             memset(pv_name, 0, sizeof(pv_name));
             snprintf(pv_name, sizeof(pv_name), "SRC%02d-PS-HC%d:setReference", i + 1, j + 1);
-            ca_search(pv_name, &h_correctors_id[i * 2 + j]);
+            ca_search(pv_name, &hc_reference_id[i * 2 + j]);
 
             memset(pv_name, 0, sizeof(pv_name));
             snprintf(pv_name, sizeof(pv_name), "SRC%02d-PS-VC%d:setReference", i + 1, j + 1);
-            ca_search(pv_name, &v_correctors_id[i * 2 + j]);
+            ca_search(pv_name, &vc_reference_id[i * 2 + j]);
+
+            memset(pv_name, 0, sizeof(pv_name));
+            snprintf(pv_name, sizeof(pv_name), "SRC%02d-PS-HC%d:getIload", i + 1, j + 1);
+            ca_search(pv_name, &hc_load_id[i * 2 + j]);
+
+            memset(pv_name, 0, sizeof(pv_name));
+            snprintf(pv_name, sizeof(pv_name), "SRC%02d-PS-VC%d:getIload", i + 1, j + 1);
+            ca_search(pv_name, &vc_load_id[i * 2 + j]);
         }
     }
 
@@ -194,8 +204,8 @@ bool read_currents()
 	{
 		for(j = 0; j < 2; j++)
 		{
-			ca_get(DBR_DOUBLE, h_correctors_id[i * 2 + j], &h_correctors_currents[i * 2 + j]);
-			ca_get(DBR_DOUBLE, v_correctors_id[i * 2 + j], &v_correctors_currents[i * 2 + j]);
+			ca_get(DBR_DOUBLE, hc_reference_id[i * 2 + j], &hc_load[i * 2 + j]);
+			ca_get(DBR_DOUBLE, vc_reference_id[i * 2 + j], &vc_load[i * 2 + j]);
 		}
 	}
 
@@ -208,31 +218,29 @@ bool read_currents()
 
 bool read_h_current(int cell, int index, double* value)
 {
-
 	int status;
     int ind = (cell-1) * 2 + (index - 1);
-	ca_get(DBR_DOUBLE, h_correctors_id[ind], &h_correctors_currents[ind]);
+	ca_get(DBR_DOUBLE, hc_load_id[ind], &hc_load[ind]);
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
 		return false;
 	
-	*value = h_correctors_currents[ind];
+	*value = hc_load[ind];
 	return true;
 }
 
 bool read_v_current(int cell, int index, double* value)
 {
-
 	int status;
     int ind = (cell-1) * 2 + (index - 1);
-	ca_get(DBR_DOUBLE, v_correctors_id[ind], &v_correctors_currents[ind]);
+	ca_get(DBR_DOUBLE, vc_load_id[ind], &vc_load[ind]);
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
 		return false;
 	
-	*value = v_correctors_currents[ind];
+	*value = vc_load[ind];
 	return true;
 }
 
@@ -242,10 +250,7 @@ bool read_rf(double* value)
 
 	ca_get(DBR_DOUBLE, rf_frequency_id, value);
 	status = ca_pend_io(IO_TIMEOUT);
-	if(status != ECA_NORMAL)
-		return false;
-	
-	return true;
+	return status == ECA_NORMAL;
 }
 
 bool set_rf(double value)
@@ -254,9 +259,6 @@ bool set_rf(double value)
 
 	ca_put(DBR_DOUBLE, set_rf_id, &value);
 	status = ca_pend_io(IO_TIMEOUT);
-	if(status != ECA_NORMAL)
-		return false;
-
-	return true;
+	return status == ECA_NORMAL;
 }
 
