@@ -10,6 +10,9 @@
 #define CORRECTOR_COUNT 32
 #define IO_TIMEOUT		1
 
+#define SOFB_OK			0
+#define SOFB_ERROR_CA	1
+
 chid x_positions_id[ BPM_COUNT ];
 chid y_positions_id[ BPM_COUNT ];
 chid hc_reference_id[ CORRECTOR_COUNT ];
@@ -23,15 +26,15 @@ double y_positions[ BPM_COUNT ];
 double hc_load[ CORRECTOR_COUNT ];
 double vc_load[ CORRECTOR_COUNT ];
 
-static bool initialize_epics();
-static bool read_positions();
-static bool read_position_x(int libera, int bpm, double* value);
-static bool read_position_y(int libera, int bpm, double* value);
-static bool read_currents();
-static bool read_h_current(int cell, int index, double* value);
-static bool read_v_current(int cell, int index, double* value);
-static bool read_rf(double* value);
-static bool set_rf(double value);
+static int initialize_epics();
+static int read_positions();
+static int read_position_x(int libera, int bpm, double* value);
+static int read_position_y(int libera, int bpm, double* value);
+static int read_currents();
+static int read_h_current(int cell, int index, double* value);
+static int read_v_current(int cell, int index, double* value);
+static int read_rf(double* value);
+static int set_rf(double value);
 
 int main()
 {
@@ -69,7 +72,7 @@ int main()
 	return 0;
 }
 
-bool initialize_epics()
+int initialize_epics()
 {
 	int i, j, status;
 	char pv_name[50];
@@ -123,17 +126,17 @@ bool initialize_epics()
 	switch(status)
 	{
 		case ECA_NORMAL:
-			return true;
+			return SOFB_OK;
 		case ECA_TIMEOUT:
 			printf("Some PVs were not found during initialization\n");
-			return false;
+			return SOFB_ERROR_CA;
 		default:
 			printf("Unknown CA error occured\n");
-			return false;
+			return SOFB_ERROR_CA;
 	}
 }
 
-bool read_positions()
+int read_positions()
 {
 	int i, j, status;
 
@@ -148,7 +151,7 @@ bool read_positions()
 
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
-		return false;
+		return SOFB_ERROR_CA;
 	
 	for(i = 0; i < LIBERA_COUNT; i++)
 	{
@@ -159,10 +162,10 @@ bool read_positions()
 		}
 	}
 
-	return true;
+	return SOFB_OK;
 }
 
-bool read_position_x(int libera, int bpm, double* value)
+int read_position_x(int libera, int bpm, double* value)
 {
 	int index;
 	int status;
@@ -172,14 +175,14 @@ bool read_position_x(int libera, int bpm, double* value)
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
-		return false;
+		return SOFB_ERROR_CA;
 	
 	x_positions[index] /= 1000.0;
 	*value = x_positions[index];
-	return true;
+	return SOFB_OK;
 }
 
-bool read_position_y(int libera, int bpm, double* value)
+int read_position_y(int libera, int bpm, double* value)
 {
 	int index;
 	int status;
@@ -189,14 +192,14 @@ bool read_position_y(int libera, int bpm, double* value)
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
-		return false;
+		return SOFB_ERROR_CA;
 
 	y_positions[index] /= 1000.0;
 	*value = y_positions[index];
-	return true;
+	return SOFB_OK;
 }
 
-bool read_currents()
+int read_currents()
 {
 	int i, j, status;
 
@@ -211,12 +214,12 @@ bool read_currents()
 
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
-		return false;
+		return SOFB_ERROR_CA;
 
-	return true;
+	return SOFB_OK;
 }
 
-bool read_h_current(int cell, int index, double* value)
+int read_h_current(int cell, int index, double* value)
 {
 	int status;
     int ind = (cell-1) * 2 + (index - 1);
@@ -224,13 +227,13 @@ bool read_h_current(int cell, int index, double* value)
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
-		return false;
+		return SOFB_ERROR_CA;
 	
 	*value = hc_load[ind];
-	return true;
+	return SOFB_OK;
 }
 
-bool read_v_current(int cell, int index, double* value)
+int read_v_current(int cell, int index, double* value)
 {
 	int status;
     int ind = (cell-1) * 2 + (index - 1);
@@ -238,27 +241,27 @@ bool read_v_current(int cell, int index, double* value)
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
-		return false;
+		return SOFB_ERROR_CA;
 	
 	*value = vc_load[ind];
-	return true;
+	return SOFB_OK;
 }
 
-bool read_rf(double* value)
+int read_rf(double* value)
 {
 	int status;
 
 	ca_get(DBR_DOUBLE, rf_frequency_id, value);
 	status = ca_pend_io(IO_TIMEOUT);
-	return status == ECA_NORMAL;
+	return (status == ECA_NORMAL) ? SOFB_OK : SOFB_ERROR_CA;
 }
 
-bool set_rf(double value)
+int set_rf(double value)
 {
 	int status;
 
 	ca_put(DBR_DOUBLE, set_rf_id, &value);
 	status = ca_pend_io(IO_TIMEOUT);
-	return status == ECA_NORMAL;
+	return (status == ECA_NORMAL) ? SOFB_OK : SOFB_ERROR_CA;
 }
 
