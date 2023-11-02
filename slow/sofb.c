@@ -25,6 +25,7 @@ double x_positions[ BPM_COUNT ];
 double y_positions[ BPM_COUNT ];
 double hc_load[ CORRECTOR_COUNT ];
 double vc_load[ CORRECTOR_COUNT ];
+double* orm;
 
 static int initialize_epics();
 static int read_positions();
@@ -68,6 +69,12 @@ int main()
     // RF
 	read_rf(&value);
 	printf("RF: %f\n", value);
+
+	orm = (double*) mkl_alloc(BPM_COUNT * CORRECTOR_COUNT * sizeof(double), 64);
+	if(orm == NULL) {
+		// TODO: Error.
+	}
+	// Read and init the orm pointer;
 	
 	return 0;
 }

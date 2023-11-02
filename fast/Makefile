@@ -7,7 +7,7 @@ INCDIRS  += $(MKL)/mkl/include
 LIBDIRS  += $(MKL)/mkl/lib/intel64
 LIBS     += mkl_intel_ilp64 mkl_gnu_thread mkl_core 
 LIBS     += gomp pthread m dl rt
-
+# gcc fofb.c -o fofb -DMKL_ILP64 -m64 -I"${MKLROOT}/include" -L${MKLROOT}/lib/intel64 -Wl,--no-as-needed -lmkl_intel_ilp64 -lmkl_gnu_thread -lmkl_core -lgomp -lpthread -lm -ldl
 # CFLAGS += -O3
 # CFLAGS += -g
 # CFLAGS += -std=c99 -D_SVID_SOURCE

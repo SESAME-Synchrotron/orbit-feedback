@@ -19,7 +19,7 @@
 #define BPM_COUNT		32
 #define NIC_FA_DATA		"eno2"
 #define NIC_GATEWAY		"eno1"
-#define GW_X_ADDRESS	"10.2.2.18"
+#define GW_X_ADDRESS	"10.2.2.152"
 #define GW_Y_ADDRESS	"10.2.2.20"
 #define GW_PORT			55555
 
@@ -256,9 +256,11 @@ int main()
 		if(bytes != BUFFER_SIZE)
 			continue;
 
-		skip++;
-		if(skip != 2)
+		if(skip != 3)
+		{
+			skip++;
 			continue;
+		}
 		skip = 0;
 
 		// Copy the fast data to the corresponding orbit array.

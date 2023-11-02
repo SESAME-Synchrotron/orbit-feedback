@@ -1,13 +1,20 @@
 EPICS     = /opt/epics/base
 HOST      = linux-x86_64
+MKL       = ${MKL_ROOT}
 
 PROGRAM  += sofb
 SRCS     += sofb.c
+
+INCDIRS  += $(MKL)/mkl/include
 INCDIRS  += $(EPICS)/include
 INCDIRS  += $(EPICS)/include/os/Linux
 INCDIRS  += $(EPICS)/include/compiler/gcc
+
 LIBS     += ca Com
+LIBS     += mkl_intel_ilp64 mkl_gnu_thread mkl_core 
+LIBS     += gomp pthread m dl rt
 LIBDIRS  += $(EPICS)/lib/$(HOST)
+LIBDIRS  += $(MKL)/mkl/lib/intel64
 
 # CFLAGS += -O3
 # CFLAGS += -g
