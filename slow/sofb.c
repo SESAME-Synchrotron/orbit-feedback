@@ -50,6 +50,13 @@ int sofb_init_epics()
 	snprintf(pv_name, sizeof(pv_name), "BO-RF-SGN1:setFrequency");
 	ca_search(pv_name, &set_rf_id);
 
+	ADD_PV("SOFB:SamplingFrequency", id_sampling_frequency);
+	ADD_PV("SOFB:SingularValues", id_singular_values);
+	ADD_PV("SOFB:MaxDeltaCurrent", id_max_delta_current);
+	ADD_PV("SOFB:MaxDeltaRF", id_max_delta_rf);
+	ADD_PV("SOFB:CurrentAlarmLimit", id_current_alarm);
+	ADD_PV("SOFB:IncludeRF", id_include_rf);
+
 	status = ca_pend_io(IO_TIMEOUT);
 	switch(status)
 	{
@@ -62,6 +69,23 @@ int sofb_init_epics()
 			printf("Unknown CA error occured\n");
 			return SOFB_ERROR_CA;
 	}
+}
+
+int sofb_init_params()
+{
+	int status;
+
+	ca_get(DBR_DOUBLE, id_sampling_frequency, &sampling_frequency);
+	ca_get(DBR_LONG,   id_singular_values,    &singular_values);
+	ca_get(DBR_DOUBLE, id_max_delta_current,  &max_delta_current);
+	ca_get(DBR_DOUBLE, id_max_delta_rf,       &max_delta_rf);
+	ca_get(DBR_DOUBLE, id_current_alarm,      &current_alarm);
+	ca_get(DBR_ENUM,   id_include_rf,         &include_rf);
+
+	status = ca_pend_io(IO_TIMEOUT);
+	if(status != ECA_NORMAL)
+		return SOFB_ERROR_CA;
+	return SOFB_OK;
 }
 
 int sofb_read_positions()

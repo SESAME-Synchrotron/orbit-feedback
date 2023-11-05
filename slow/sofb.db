@@ -1,0 +1,38 @@
+record(ai, "SOFB:SamplingFrequency")
+{
+	field(PINI, "YES")
+	field(VAL,  "10")
+}
+
+record(longin, "SOFB:SingularValues")
+{
+	field(PINI, "YES")
+	field(VAL,  "0")
+}
+
+record(ai, "SOFB:MaxDeltaCurrent")
+{
+	field(PINI, "YES")
+	field(VAL,  "1")
+}
+
+record(ai, "SOFB:MaxDeltaRF")
+{
+	field(PINI, "YES")
+	field(VAL,  "0.001")
+}
+
+record(ai, "SOFB:CurrentAlarmLimit")
+{
+	field(PINI, "YES")
+	field(VAL,  "8")
+}
+
+record(bo, "SOFB:IncludeRF")
+{
+	field(PINI, "YES")
+	field(VAL,  "1")
+	field(ZNAM, "NO")
+	field(ONAM, "YES")
+}
+

@@ -5,6 +5,7 @@ int main()
 	double value;
 
 	sofb_init_epics();
+	sofb_init_params();
 
     // BPM
 	sofb_read_position_x(1, 1, &value);
