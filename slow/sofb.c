@@ -1,85 +1,6 @@
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
+#include "sofb.h"
 
-#include <cadef.h>
-
-#define LIBERA_COUNT	12
-#define BPM_COUNT		48
-#define CELL_COUNT      16
-#define CORRECTOR_COUNT 32
-#define IO_TIMEOUT		1
-
-#define SOFB_OK			0
-#define SOFB_ERROR_CA	1
-
-chid x_positions_id[ BPM_COUNT ];
-chid y_positions_id[ BPM_COUNT ];
-chid hc_reference_id[ CORRECTOR_COUNT ];
-chid vc_reference_id[ CORRECTOR_COUNT ];
-chid hc_load_id[ CORRECTOR_COUNT ];
-chid vc_load_id[ CORRECTOR_COUNT ];
-chid rf_frequency_id;
-chid set_rf_id;
-double x_positions[ BPM_COUNT ];
-double y_positions[ BPM_COUNT ];
-double hc_load[ CORRECTOR_COUNT ];
-double vc_load[ CORRECTOR_COUNT ];
-double* orm;
-
-static int initialize_epics();
-static int read_positions();
-static int read_position_x(int libera, int bpm, double* value);
-static int read_position_y(int libera, int bpm, double* value);
-static int read_currents();
-static int read_h_current(int cell, int index, double* value);
-static int read_v_current(int cell, int index, double* value);
-static int read_rf(double* value);
-static int set_rf(double value);
-
-int main()
-{
-	double value;
-
-	initialize_epics();
-
-    // BPM
-	read_position_x(1, 1, &value);
-	printf("Value: %.3f\n", value);
-	
-	read_positions();
-	value = x_positions[0];
-	printf("Value: %.3f\n", value);
-
-    // Correctors
-    read_h_current(16, 2, &value);
-    printf("H2C16 Current Value %.3f\n", value);
-    read_h_current(7, 1, &value);
-    printf("H1C7 Current Value %.3f\n", value);
-
-    read_v_current(16, 2, &value);
-    printf("V2C16 Current Value %.3f\n", value);
-    read_v_current(7, 1, &value);
-    printf("V1C7 Current Value %.3f\n", value);
-
-    read_currents();
-    printf("H1C1 Current Value %.3f\n", hc_load[0]);
-    printf("V1C1 Current Value %.3f\n", vc_load[0]);
-
-    // RF
-	read_rf(&value);
-	printf("RF: %f\n", value);
-
-	orm = (double*) mkl_alloc(BPM_COUNT * CORRECTOR_COUNT * sizeof(double), 64);
-	if(orm == NULL) {
-		// TODO: Error.
-	}
-	// Read and init the orm pointer;
-	
-	return 0;
-}
-
-int initialize_epics()
+int sofb_init_epics()
 {
 	int i, j, status;
 	char pv_name[50];
@@ -143,7 +64,7 @@ int initialize_epics()
 	}
 }
 
-int read_positions()
+int sofb_read_positions()
 {
 	int i, j, status;
 
@@ -172,7 +93,7 @@ int read_positions()
 	return SOFB_OK;
 }
 
-int read_position_x(int libera, int bpm, double* value)
+int sofb_read_position_x(int libera, int bpm, double* value)
 {
 	int index;
 	int status;
@@ -189,7 +110,7 @@ int read_position_x(int libera, int bpm, double* value)
 	return SOFB_OK;
 }
 
-int read_position_y(int libera, int bpm, double* value)
+int sofb_read_position_y(int libera, int bpm, double* value)
 {
 	int index;
 	int status;
@@ -206,7 +127,7 @@ int read_position_y(int libera, int bpm, double* value)
 	return SOFB_OK;
 }
 
-int read_currents()
+int sofb_read_currents()
 {
 	int i, j, status;
 
@@ -226,7 +147,7 @@ int read_currents()
 	return SOFB_OK;
 }
 
-int read_h_current(int cell, int index, double* value)
+int sofb_read_current_h(int cell, int index, double* value)
 {
 	int status;
     int ind = (cell-1) * 2 + (index - 1);
@@ -240,7 +161,7 @@ int read_h_current(int cell, int index, double* value)
 	return SOFB_OK;
 }
 
-int read_v_current(int cell, int index, double* value)
+int sofb_read_current_v(int cell, int index, double* value)
 {
 	int status;
     int ind = (cell-1) * 2 + (index - 1);
@@ -254,7 +175,7 @@ int read_v_current(int cell, int index, double* value)
 	return SOFB_OK;
 }
 
-int read_rf(double* value)
+int sofb_read_rf(double* value)
 {
 	int status;
 
@@ -263,7 +184,7 @@ int read_rf(double* value)
 	return (status == ECA_NORMAL) ? SOFB_OK : SOFB_ERROR_CA;
 }
 
-int set_rf(double value)
+int sofb_set_rf(double value)
 {
 	int status;
 
