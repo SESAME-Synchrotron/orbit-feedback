@@ -1,11 +1,11 @@
 EPICS     = /opt/epics/base
 HOST      = linux-x86_64
-MKL       = ${HOME}/work/intel/
+MKL       = ${HOME}/intel/oneapi/mkl/latest
 
 PROGRAM  += sofb
 SRCS     += sofb.c main.c
 
-INCDIRS  += $(MKL)/mkl/include
+INCDIRS  += $(MKL)/include
 INCDIRS  += $(EPICS)/include
 INCDIRS  += $(EPICS)/include/os/Linux
 INCDIRS  += $(EPICS)/include/compiler/gcc
@@ -14,7 +14,7 @@ LIBS     += ca Com
 LIBS     += mkl_intel_lp64 mkl_gnu_thread mkl_core 
 LIBS     += gomp pthread m dl rt
 LIBDIRS  += $(EPICS)/lib/$(HOST)
-LIBDIRS  += $(MKL)/mkl/lib/intel64
+LIBDIRS  += $(MKL)/lib/intel64
 
 # CFLAGS += -O3
 # CFLAGS += -g

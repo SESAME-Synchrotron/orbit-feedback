@@ -96,8 +96,8 @@ int sofb_read_positions()
 	{
 		for(j = 0; j < 4; j++)
 		{
-			ca_get(DBR_DOUBLE, x_positions_id[i * 4 + j], &x_positions[i * 4 + j]);
-			ca_get(DBR_DOUBLE, y_positions_id[i * 4 + j], &y_positions[i * 4 + j]);
+			ca_get(DBR_DOUBLE, x_positions_id[i * 4 + j], &orbit_x[i * 4 + j]);
+			ca_get(DBR_DOUBLE, y_positions_id[i * 4 + j], &orbit_y[i * 4 + j]);
 		}
 	}
 
@@ -109,8 +109,8 @@ int sofb_read_positions()
 	{
 		for(j = 0; j < 4; j++)
 		{
-			x_positions[i * 4 + j] /= 1000.0;
-			y_positions[i * 4 + j] /= 1000.0;
+			orbit_x[i * 4 + j] /= 1000.0;
+			orbit_y[i * 4 + j] /= 1000.0;
 		}
 	}
 
@@ -123,14 +123,14 @@ int sofb_read_position_x(int libera, int bpm, double* value)
 	int status;
 	
 	index = (libera - 1) * 4 + (bpm - 1);
-	ca_get(DBR_DOUBLE, x_positions_id[index], &x_positions[index]);
+	ca_get(DBR_DOUBLE, x_positions_id[index], &orbit_x[index]);
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
 		return SOFB_ERROR_CA;
 	
-	x_positions[index] /= 1000.0;
-	*value = x_positions[index];
+	orbit_x[index] /= 1000.0;
+	*value = orbit_x[index];
 	return SOFB_OK;
 }
 
@@ -140,14 +140,14 @@ int sofb_read_position_y(int libera, int bpm, double* value)
 	int status;
 
 	index = (libera - 1) * 4 + (bpm - 1);
-	ca_get(DBR_DOUBLE, y_positions_id[index], &y_positions[index]);
+	ca_get(DBR_DOUBLE, y_positions_id[index], &orbit_y[index]);
 	
 	status = ca_pend_io(IO_TIMEOUT);
 	if(status != ECA_NORMAL)
 		return SOFB_ERROR_CA;
 
-	y_positions[index] /= 1000.0;
-	*value = y_positions[index];
+	orbit_y[index] /= 1000.0;
+	*value = orbit_y[index];
 	return SOFB_OK;
 }
 
