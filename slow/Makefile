@@ -16,17 +16,14 @@ LIBS     += gomp pthread m dl rt
 LIBDIRS  += $(EPICS)/lib/$(HOST)
 LIBDIRS  += $(MKL)/lib/intel64
 
-# CFLAGS += -O3
-# CFLAGS += -g
-# CFLAGS += -std=c99 -D_SVID_SOURCE
-CFLAGS   += -Wall -Wno-unused-function
+# CFLAGS += -O3 -g -std=c99 -D_SVID_SOURCE
+CFLAGS   += -pedantic
 CPPFLAGS += $(INCDIRS:%=-I %)
 LDFLAGS  += $(LIBDIRS:%=-L %)
 LDFLAGS  += $(LIBDIRS:%=-Wl,-rpath,%)
 LDFLAGS  += $(LIBS:%=-l%)
 
 OBJS = $(addsuffix .o,$(basename $(SRCS)))
-DOUT = $(addsuffix .d,$(basename $(SRCS)))
 
 .PHONY:
 .PHONY: clean install
@@ -42,10 +39,8 @@ $(PROGRAM): $(OBJS)
 
 clean:
 	rm -rf $(PROGRAM)
-	rm -rf $(PROGRAM).d
 	rm -rf $(PROGRAM).o
 	rm -rf $(OBJS)
-	rm -rf $(DOUT)
 	rm -f /usr/bin/$(PROGRAM)
 
 install: $(PROGRAM)

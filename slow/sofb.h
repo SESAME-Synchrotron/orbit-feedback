@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <cadef.h>
+
+#include "mkl.h"
 
 #define LIBERA_COUNT	12
 #define BPM_COUNT		48
@@ -35,11 +38,15 @@ chid id_max_delta_rf;
 chid id_current_alarm;
 chid id_include_rf;
 
-double  x_positions[ BPM_COUNT ];
-double  y_positions[ BPM_COUNT ];
-double  hc_load[ CORRECTOR_COUNT ];
-double  vc_load[ CORRECTOR_COUNT ];
-double* orm;
+double* orbit_x;
+double* orbit_y;
+double* gold_orbit_x;
+double* gold_orbit_y;
+double* hc_load;
+double* vc_load;
+double* hc_delta;
+double* vc_delta;
+double* Rmat;
 
 double sampling_frequency;
 double max_delta_current;
