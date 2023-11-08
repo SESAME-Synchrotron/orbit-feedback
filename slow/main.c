@@ -5,9 +5,8 @@ int main()
 	double value;
 
 	int i = 0;
-	int alpha = 1;
-	int beta = 0;
-	int n = 1;
+	double rf;
+	double delta_rf;
 
 	Rmat = (double*) mkl_malloc(BPM_COUNT * CORRECTOR_COUNT * sizeof(double), 64);
 	gold_orbit_x = (double*) mkl_malloc(BPM_COUNT * sizeof(double), 64);
@@ -62,12 +61,13 @@ int main()
 	{
 		sofb_read_positions();
 		sofb_read_currents();
+		sofb_read_rf(&rf);
 
 		cblas_daxpy(BPM_COUNT, -1, gold_orbit_x, 0, orbit_x, 0);
 		cblas_daxpy(BPM_COUNT, -1, gold_orbit_y, 0, orbit_y, 0);
 
-		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, BPM_COUNT, n, CORRECTOR_COUNT, alpha, Rmat, CORRECTOR_COUNT, orbit_x, n, beta, hc_delta, n);
-		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, BPM_COUNT, n, CORRECTOR_COUNT, alpha, Rmat, CORRECTOR_COUNT, orbit_y, n, beta, vc_delta, n);
+		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, BPM_COUNT, N, CORRECTOR_COUNT, ALPHA, Rmat, CORRECTOR_COUNT, orbit_x, N, BETA, hc_delta, N);
+		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, BPM_COUNT, N, CORRECTOR_COUNT, ALPHA, Rmat, CORRECTOR_COUNT, orbit_y, N, BETA, vc_delta, N);
 
 		for(i = 0; i < CORRECTOR_COUNT; i++)
 		{
@@ -76,7 +76,13 @@ int main()
 			ca_put(DBR_DOUBLE, hc_reference_id[i], hc_load + i);
 			ca_put(DBR_DOUBLE, vc_reference_id[i], vc_load + i);
 		}
-		ca_pend_io(IO_TIMEOUT);
+
+		if (include_rf) {
+			delta_rf = hc_delta[ CORRECTOR_COUNT ];
+			sofb_set_rf(rf + delta_rf);
+		}
+		else
+			ca_pend_io(IO_TIMEOUT);
 
 		sleep(1 / sampling_frequency);
 	}

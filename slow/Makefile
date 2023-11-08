@@ -29,13 +29,10 @@ OBJS = $(addsuffix .o,$(basename $(SRCS)))
 .PHONY: clean install
 
 $(PROGRAM): $(OBJS)
-	@$(CC) $(LDFLAGS) $^ -o $@
-	@echo LD $< $@
+	$(CC) $(LDFLAGS) $^ -o $@
 
 %.o: %.c
-	@echo MKL = $(MKL)
-	@$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
-	@echo CC $< $@
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
 
 clean:
 	rm -rf $(PROGRAM)

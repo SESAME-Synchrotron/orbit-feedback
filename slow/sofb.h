@@ -21,6 +21,9 @@
 	snprintf(pv_name, sizeof(pv_name), name); \
 	ca_search(pv_name, &id);
 
+#define ALPHA	1
+#define BETA	0
+#define N		1
 
 chid x_positions_id[ BPM_COUNT ];
 chid y_positions_id[ BPM_COUNT ];
